@@ -34,6 +34,7 @@ export interface CardField {
   key: string;
   label: string;
   value: string;
+  side: 'front' | 'back';
   x: number;
   y: number;
   width: number;

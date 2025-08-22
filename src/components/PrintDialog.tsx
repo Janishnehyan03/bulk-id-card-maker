@@ -41,123 +41,148 @@ export default function PrintDialog({ isOpen, onClose, template, data, dataType 
     const availableWidth = paperWidth - (printSettings.margin * 2);
     const availableHeight = paperHeight - (printSettings.margin * 2);
     
-    const actualItemsPerRow = Math.floor(availableWidth / (cardWidthMM + printSettings.bleed));
-    const actualItemsPerColumn = Math.floor(availableHeight / (cardHeightMM + printSettings.bleed));
+    const actualItemsPerRow = printSettings.itemsPerRow;
+    const actualItemsPerColumn = printSettings.itemsPerColumn;
     const itemsPerPage = actualItemsPerRow * actualItemsPerColumn;
 
-    let currentPage = 0;
-    let itemsOnCurrentPage = 0;
+    // Calculate spacing
+    const cardSpacingX = (availableWidth - (actualItemsPerRow * cardWidthMM)) / Math.max(1, actualItemsPerRow - 1);
+    const cardSpacingY = (availableHeight - (actualItemsPerColumn * cardHeightMM)) / Math.max(1, actualItemsPerColumn - 1);
 
-    for (let i = 0; i < data.length; i++) {
-      const record = data[i];
-      
-      if (itemsOnCurrentPage === 0 && currentPage > 0) {
-        pdf.addPage();
-      }
-      
-      const row = Math.floor(itemsOnCurrentPage / actualItemsPerRow);
-      const col = itemsOnCurrentPage % actualItemsPerRow;
-      
-      const x = printSettings.margin + (col * (cardWidthMM + printSettings.bleed));
-      const y = printSettings.margin + (row * (cardHeightMM + printSettings.bleed));
-
-      // Create canvas element for rendering the card
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = template.width;
-      canvas.height = template.height;
-
-      if (ctx) {
-        // Draw background image
-        if (template.frontImage) {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          await new Promise((resolve) => {
-            img.onload = () => {
-              ctx.drawImage(img, 0, 0, template.width, template.height);
-              resolve(void 0);
-            };
-            img.src = template.frontImage!;
-          });
-        }
-
-        // Draw fields
-        for (const field of template.fields) {
-          const fieldValue = (record as any)[field.key] || '';
-          
-          if (field.key === 'photo' && fieldValue) {
-            // Draw photo
-            const photoImg = new Image();
-            photoImg.crossOrigin = 'anonymous';
-            await new Promise((resolve) => {
-              photoImg.onload = () => {
-                ctx.drawImage(photoImg, field.x, field.y, field.width, field.height);
-                resolve(void 0);
-              };
-              photoImg.src = fieldValue;
-            });
-          } else {
-            // Draw text
-            ctx.fillStyle = field.color;
-            ctx.font = `${field.fontWeight} ${field.fontSize}px ${field.fontFamily}`;
-            ctx.textAlign = field.textAlign;
-            
-            const textX = field.textAlign === 'center' 
-              ? field.x + field.width / 2 
-              : field.textAlign === 'right'
-              ? field.x + field.width
-              : field.x;
-              
-            ctx.fillText(fieldValue, textX, field.y + field.fontSize);
-          }
-        }
-
-        // Add canvas to PDF
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', x, y, cardWidthMM, cardHeightMM);
-      }
-
-      // Handle double-sided cards
-      if (template.isDoubleSided && template.backImage) {
-        // Add back side on a separate page or adjacent position
-        const backX = template.isDoubleSided 
-          ? x + cardWidthMM + printSettings.bleed 
-          : x;
-        const backY = template.isDoubleSided && col % 2 === 0 
-          ? y 
-          : y + cardHeightMM + printSettings.bleed;
-
-        // Similar rendering process for back side
-        const backCanvas = document.createElement('canvas');
-        const backCtx = backCanvas.getContext('2d');
-        backCanvas.width = template.width;
-        backCanvas.height = template.height;
-
-        if (backCtx && template.backImage) {
-          const backImg = new Image();
-          backImg.crossOrigin = 'anonymous';
-          await new Promise((resolve) => {
-            backImg.onload = () => {
-              backCtx.drawImage(backImg, 0, 0, template.width, template.height);
-              const backImgData = backCanvas.toDataURL('image/png');
-              pdf.addImage(backImgData, 'PNG', backX, backY, cardWidthMM, cardHeightMM);
-              resolve(void 0);
-            };
-            backImg.src = template.backImage!;
-          });
-        }
-      }
-
-      itemsOnCurrentPage++;
-      if (itemsOnCurrentPage >= itemsPerPage) {
-        itemsOnCurrentPage = 0;
-        currentPage++;
-      }
+    if (template.isDoubleSided) {
+      // Double-sided layout: Front sides first, then back sides
+      await generateDoubleSidedPDF(pdf, cardWidthMM, cardHeightMM, actualItemsPerRow, actualItemsPerColumn, cardSpacingX, cardSpacingY);
+    } else {
+      // Single-sided layout
+      await generateSingleSidedPDF(pdf, cardWidthMM, cardHeightMM, actualItemsPerRow, actualItemsPerColumn, cardSpacingX, cardSpacingY);
     }
 
     // Save PDF
     pdf.save(`${template.name}_${dataType}_cards.pdf`);
   };
+
+  const generateSingleSidedPDF = async (pdf: jsPDF, cardWidthMM: number, cardHeightMM: number, itemsPerRow: number, itemsPerColumn: number, spacingX: number, spacingY: number) => {
+    const itemsPerPage = itemsPerRow * itemsPerColumn;
+    let currentPage = 0;
+
+    for (let i = 0; i < data.length; i++) {
+      if (i > 0 && i % itemsPerPage === 0) {
+        pdf.addPage();
+        currentPage++;
+      }
+
+      const positionInPage = i % itemsPerPage;
+      const row = Math.floor(positionInPage / itemsPerRow);
+      const col = positionInPage % itemsPerRow;
+      
+      const x = printSettings.margin + (col * (cardWidthMM + spacingX));
+      const y = printSettings.margin + (row * (cardHeightMM + spacingY));
+
+      await renderCardToPDF(pdf, data[i], 'front', x, y, cardWidthMM, cardHeightMM);
+    }
+  };
+
+  const generateDoubleSidedPDF = async (pdf: jsPDF, cardWidthMM: number, cardHeightMM: number, itemsPerRow: number, itemsPerColumn: number, spacingX: number, spacingY: number) => {
+    const itemsPerPage = itemsPerRow * itemsPerColumn;
+    
+    // Generate front sides
+    for (let i = 0; i < data.length; i++) {
+      if (i > 0 && i % itemsPerPage === 0) {
+        pdf.addPage();
+      }
+
+      const positionInPage = i % itemsPerPage;
+      const row = Math.floor(positionInPage / itemsPerRow);
+      const col = positionInPage % itemsPerRow;
+      
+      const x = printSettings.margin + (col * (cardWidthMM + spacingX));
+      const y = printSettings.margin + (row * (cardHeightMM + spacingY));
+
+      await renderCardToPDF(pdf, data[i], 'front', x, y, cardWidthMM, cardHeightMM);
+    }
+
+    // Add new page for back sides
+    pdf.addPage();
+    
+    // Generate back sides (in reverse order for proper alignment when printing)
+    for (let i = 0; i < data.length; i++) {
+      if (i > 0 && i % itemsPerPage === 0) {
+        pdf.addPage();
+      }
+
+      const positionInPage = i % itemsPerPage;
+      const row = Math.floor(positionInPage / itemsPerRow);
+      // Reverse column order for back side alignment
+      const col = (itemsPerRow - 1) - (positionInPage % itemsPerRow);
+      
+      const x = printSettings.margin + (col * (cardWidthMM + spacingX));
+      const y = printSettings.margin + (row * (cardHeightMM + spacingY));
+
+      await renderCardToPDF(pdf, data[i], 'back', x, y, cardWidthMM, cardHeightMM);
+    }
+  };
+
+  const renderCardToPDF = async (pdf: jsPDF, record: any, side: 'front' | 'back', x: number, y: number, width: number, height: number) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = template.width;
+    canvas.height = template.height;
+
+    if (ctx) {
+      // Draw background image
+      const backgroundImage = side === 'front' ? template.frontImage : template.backImage;
+      if (backgroundImage) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve) => {
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0, template.width, template.height);
+            resolve(void 0);
+          };
+          img.src = backgroundImage;
+        });
+      }
+
+      // Draw fields for the current side
+      const sideFields = template.fields.filter(field => field.side === side);
+      for (const field of sideFields) {
+        const fieldValue = (record as any)[field.key] || '';
+        
+        if (field.key === 'photo' && fieldValue) {
+          // Draw photo
+          const photoImg = new Image();
+          photoImg.crossOrigin = 'anonymous';
+          await new Promise((resolve) => {
+            photoImg.onload = () => {
+              ctx.drawImage(photoImg, field.x, field.y, field.width, field.height);
+              resolve(void 0);
+            };
+            photoImg.onerror = () => resolve(void 0);
+            photoImg.src = fieldValue;
+          });
+        } else {
+          // Draw text
+          ctx.fillStyle = field.color;
+          ctx.font = `${field.fontWeight} ${field.fontSize}px ${field.fontFamily}`;
+          ctx.textAlign = field.textAlign;
+          
+          const textX = field.textAlign === 'center' 
+            ? field.x + field.width / 2 
+            : field.textAlign === 'right'
+            ? field.x + field.width
+            : field.x;
+            
+          ctx.fillText(fieldValue, textX, field.y + field.fontSize);
+        }
+      }
+
+      // Add canvas to PDF
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', x, y, width, height);
+    }
+  };
+
+  if (!isOpen) return null;
 
   if (!isOpen) return null;
 
@@ -312,8 +337,8 @@ export default function PrintDialog({ isOpen, onClose, template, data, dataType 
                 <div>
                   <h3 className="text-sm font-medium text-amber-800">Double-sided Printing</h3>
                   <p className="text-sm text-amber-700 mt-1">
-                    This template has a back side. The PDF will be arranged for easy cutting after printing. 
-                    Make sure to print on both sides of the paper or print front and back sides separately.
+                    This template has a back side. The PDF will generate front sides first, then back sides on separate pages.
+                    Back sides are arranged in reverse order for proper alignment when printing double-sided.
                   </p>
                 </div>
               </div>

@@ -10,7 +10,7 @@ export const demoEmployees: Employee[] = [
     email: 'john.smith@company.com',
     phone: '+1-234-567-8900',
     address: '123 Main St, City, State 12345',
-    photo: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    photo: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
     joinDate: '2023-01-15',
     bloodGroup: 'O+',
     emergencyContact: '+1-234-567-8901'
@@ -24,7 +24,7 @@ export const demoEmployees: Employee[] = [
     email: 'sarah.j@company.com',
     phone: '+1-234-567-8902',
     address: '456 Oak Ave, City, State 12346',
-    photo: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    photo: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
     joinDate: '2023-03-20',
     bloodGroup: 'A+',
     emergencyContact: '+1-234-567-8903'
@@ -38,7 +38,7 @@ export const demoEmployees: Employee[] = [
     email: 'm.brown@company.com',
     phone: '+1-234-567-8904',
     address: '789 Pine Rd, City, State 12347',
-    photo: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    photo: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
     joinDate: '2022-11-10',
     bloodGroup: 'B+',
     emergencyContact: '+1-234-567-8905'
@@ -56,7 +56,7 @@ export const demoStudents: Student[] = [
     fatherName: 'David Wilson',
     motherName: 'Lisa Wilson',
     address: '321 Maple St, City, State 12348',
-    photo: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    photo: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
     admissionDate: '2023-08-15',
     bloodGroup: 'AB+',
     emergencyContact: '+1-234-567-8906'
@@ -71,7 +71,7 @@ export const demoStudents: Student[] = [
     fatherName: 'Robert Anderson',
     motherName: 'Mary Anderson',
     address: '654 Elm St, City, State 12349',
-    photo: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    photo: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
     admissionDate: '2023-08-15',
     bloodGroup: 'O-',
     emergencyContact: '+1-234-567-8907'
@@ -86,7 +86,7 @@ export const demoStudents: Student[] = [
     fatherName: 'Thomas Davis',
     motherName: 'Jennifer Davis',
     address: '987 Cedar Ave, City, State 12350',
-    photo: 'https://images.pexels.com/photos/1181519/pexels-photo-1181519.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    photo: 'https://images.pexels.com/photos/1181519/pexels-photo-1181519.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop',
     admissionDate: '2023-08-15',
     bloodGroup: 'A-',
     emergencyContact: '+1-234-567-8908'

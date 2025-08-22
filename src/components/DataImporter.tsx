@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Users, GraduationCap } from 'lucide-react';
+import { Upload, Users, GraduationCap, FileSpreadsheet } from 'lucide-react';
 import { DataSource } from '../types';
 import { demoEmployees, demoStudents } from '../data/demoData';
 
@@ -92,12 +92,22 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json"
+          accept=".json,.xlsx,.xls,.csv"
           onChange={handleFileInputChange}
           className="hidden"
         />
       </div>
 
+      {/* Excel Upload Info */}
+      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start gap-2">
+          <FileSpreadsheet className="h-4 w-4 text-blue-600 mt-0.5" />
+          <div className="text-sm text-blue-800">
+            <p className="font-medium">Excel/CSV Support Coming Soon</p>
+            <p className="text-blue-600">Currently supports JSON format. Excel upload will be available in the next update.</p>
+          </div>
+        </div>
+      </div>
       {/* Demo Data Buttons */}
       <div className="mt-6 pt-6 border-t border-gray-200">
         <p className="text-sm font-medium text-gray-700 mb-3">Or use demo data:</p>

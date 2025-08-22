@@ -41,10 +41,11 @@ export default function DesignCanvas({
       key: fieldInfo.key,
       label: fieldInfo.label,
       value: fieldInfo.value,
+      side: currentSide,
       x: 50,
       y: 50,
-      width: 200,
-      height: 30,
+      width: fieldInfo.key === 'photo' ? 100 : 200,
+      height: fieldInfo.key === 'photo' ? 120 : 30,
       fontSize: 14,
       fontFamily: 'Arial',
       color: '#000000',
@@ -187,7 +188,9 @@ export default function DesignCanvas({
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
             >
-              {template.fields.map((field) => (
+              {template.fields
+                .filter(field => field.side === currentSide)
+                .map((field) => (
                 <div
                   key={field.id}
                   className={`absolute cursor-move border-2 transition-colors ${
@@ -217,7 +220,7 @@ export default function DesignCanvas({
                     <img
                       src={field.value}
                       alt="Photo"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover rounded"
                       draggable={false}
                     />
                   ) : (
