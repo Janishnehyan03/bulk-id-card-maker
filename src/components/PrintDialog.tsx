@@ -155,7 +155,8 @@ export default function PrintDialog({ isOpen, onClose, template, data }: PrintDi
 
     const sideFields = template.fields.filter((field) => field.side === side);
     for (const field of sideFields) {
-      const fieldValue = record[field.key] || "";
+      // Use the actual data from the record, not the field's stored value
+      const fieldValue = record[field.key] || field.value || "";
       ctx.save();
 
       if (field.key === "photo" && fieldValue) {

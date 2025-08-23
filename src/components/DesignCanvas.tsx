@@ -62,18 +62,43 @@ export default function DesignCanvas({
       currentSide === "front" ? template.frontImage : template.backImage;
     if (imgUrl) {
       getImageSize(imgUrl).then((size) => {
-        const maxW = 900,
-          maxH = 570;
-        const scale = Math.min(maxW / size.width, maxH / size.height, 1);
+        // Use the template's specified dimensions or scale to fit within reasonable bounds
+        const maxW = 1200, maxH = 800; // Increased max size for better quality
+        const templateAspectRatio = template.width / template.height;
+        const imageAspectRatio = size.width / size.height;
+        
+        let newWidth, newHeight;
+        
+        // If template dimensions are reasonable, use them as base
+        if (template.width <= maxW && template.height <= maxH) {
+          newWidth = template.width;
+          newHeight = template.height;
+        } else {
+          // Scale down template dimensions to fit
+          const scale = Math.min(maxW / template.width, maxH / template.height);
+          newWidth = Math.round(template.width * scale);
+          newHeight = Math.round(template.height * scale);
+        }
+        
         setCanvasSize({
-          width: Math.round(size.width * scale),
-          height: Math.round(size.height * scale),
+          width: newWidth,
+          height: newHeight,
         });
       });
     } else {
-      setCanvasSize({ width: 900, height: 570 });
+      // Use template dimensions or default
+      const maxW = 1200, maxH = 800;
+      if (template.width <= maxW && template.height <= maxH) {
+        setCanvasSize({ width: template.width, height: template.height });
+      } else {
+        const scale = Math.min(maxW / template.width, maxH / template.height);
+        setCanvasSize({
+          width: Math.round(template.width * scale),
+          height: Math.round(template.height * scale),
+        });
+      }
     }
-  }, [template.frontImage, template.backImage, currentSide]);
+  }, [template.frontImage, template.backImage, template.width, template.height, currentSide]);
 
   const addField = (fieldInfo: {
     key: string;
@@ -84,7 +109,7 @@ export default function DesignCanvas({
       id: Date.now().toString(),
       key: fieldInfo.key,
       label: fieldInfo.label,
-      value: fieldInfo.value,
+      value: currentRecord[fieldInfo.key] || fieldInfo.value, // Use current record data
       side: currentSide,
       x: 10,
       y: 10, // Start at a corner
@@ -104,7 +129,12 @@ export default function DesignCanvas({
 
   const updateField = (fieldId: string, updates: Partial<CardField>) => {
     const updatedFields = template.fields.map((field) =>
-      field.id === fieldId ? { ...field, ...updates } : field
+      field.id === fieldId ? { 
+        ...field, 
+        ...updates,
+        // Update the value with current record data when the field is updated
+        value: updates.value !== undefined ? updates.value : (currentRecord[field.key] || field.value)
+      } : field
     );
     onTemplateUpdate({ ...template, fields: updatedFields });
   };
@@ -180,6 +210,16 @@ export default function DesignCanvas({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedFieldId]);
+
+  useEffect(() => {
+    if (template.fields.length > 0) {
+      const updatedFields = template.fields.map(field => ({
+        ...field,
+        value: currentRecord[field.key] || field.value
+      }));
+      onTemplateUpdate({ ...template, fields: updatedFields });
+    }
+  }, [selectedRecord, currentRecord]);
 
   const editingFieldData = editingFieldId
     ? template.fields.find((f) => f.id === editingFieldId)

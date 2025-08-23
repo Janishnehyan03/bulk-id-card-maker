@@ -141,7 +141,7 @@ function App() {
           {/* Left Panel */}
           <div className="space-y-6">
             <DataImporter onDataImport={handleDataImport} />
-            {data.length > 0 && !template && (
+            {data.length > 0 && (
               <TemplateUploader onTemplateCreate={handleTemplateCreate} />
             )}
           </div>
