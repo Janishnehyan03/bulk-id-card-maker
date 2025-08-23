@@ -1,144 +1,214 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { CardTemplate, CardField, DataSource } from '../types';
-import { Move, Type, Palette, Layers, RotateCcw, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { CardField, CardTemplate, DataSource } from "../types";
+import { FieldPropertiesPanel } from "./FieldProperties";
+import { CanvasField } from "./CanvasField.tsx"; // <-- New Component
 
+// --- Helpers moved outside the component for better organization ---
+const MM_WIDTH = 90,
+  MM_HEIGHT = 57; // mm (standard card)
+
+function getAvailableFields(record: any, type: "employee" | "student") {
+  if (!record) return [];
+  const fields = Object.keys(record).filter((key) => key !== "id");
+  return fields.map((key) => ({
+    key,
+    label:
+      key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, " $1"),
+    value: record[key],
+  }));
+}
+
+function getImageSize(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () =>
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve({ width: 900, height: 570 }); // fallback
+    img.src = url;
+  });
+}
+
+// --- Main Component ---
 interface DesignCanvasProps {
   template: CardTemplate;
   data: DataSource;
-  dataType: 'employee' | 'student';
+  dataType: "employee" | "student";
   selectedRecord: number;
   onTemplateUpdate: (template: CardTemplate) => void;
 }
 
-export default function DesignCanvas({ 
-  template, 
-  data, 
-  dataType, 
-  selectedRecord, 
-  onTemplateUpdate 
+export default function DesignCanvas({
+  template,
+  data,
+  dataType,
+  selectedRecord,
+  onTemplateUpdate,
 }: DesignCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [selectedField, setSelectedField] = useState<string | null>(null);
-  const [currentSide, setCurrentSide] = useState<'front' | 'back'>('front');
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null); // For properties panel
+  const [currentSide, setCurrentSide] = useState<"front" | "back">("front");
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [canvasSize, setCanvasSize] = useState({ width: 900, height: 570 });
 
   const currentRecord = data[selectedRecord];
   const availableFields = getAvailableFields(currentRecord, dataType);
+  const pxPerMm = canvasSize.width / MM_WIDTH;
 
-  function getAvailableFields(record: any, type: 'employee' | 'student') {
-    const fields = Object.keys(record).filter(key => key !== 'id');
-    return fields.map(key => ({
-      key,
-      label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
-      value: record[key]
-    }));
-  }
+  useEffect(() => {
+    const imgUrl =
+      currentSide === "front" ? template.frontImage : template.backImage;
+    if (imgUrl) {
+      getImageSize(imgUrl).then((size) => {
+        const maxW = 900,
+          maxH = 570;
+        const scale = Math.min(maxW / size.width, maxH / size.height, 1);
+        setCanvasSize({
+          width: Math.round(size.width * scale),
+          height: Math.round(size.height * scale),
+        });
+      });
+    } else {
+      setCanvasSize({ width: 900, height: 570 });
+    }
+  }, [template.frontImage, template.backImage, currentSide]);
 
-  const addField = (fieldInfo: { key: string; label: string; value: string }) => {
+  const addField = (fieldInfo: {
+    key: string;
+    label: string;
+    value: string;
+  }) => {
     const newField: CardField = {
       id: Date.now().toString(),
       key: fieldInfo.key,
       label: fieldInfo.label,
       value: fieldInfo.value,
       side: currentSide,
-      x: 50,
-      y: 50,
-      width: fieldInfo.key === 'photo' ? 100 : 200,
-      height: fieldInfo.key === 'photo' ? 120 : 30,
+      x: 10,
+      y: 10, // Start at a corner
+      width: fieldInfo.key === "photo" ? 20 : 40,
+      height: fieldInfo.key === "photo" ? 24 : 6,
       fontSize: 14,
-      fontFamily: 'Arial',
-      color: '#000000',
-      textAlign: 'left',
-      fontWeight: 'normal',
-      layer: template.fields.length + 1
+      fontFamily: "Arial",
+      color: "#000000",
+      textAlign: "left",
+      fontWeight: "normal",
+      layer: (template.fields.length || 0) + 1,
+      rotation: 0,
     };
-
-    const updatedTemplate = {
-      ...template,
-      fields: [...template.fields, newField]
-    };
-    onTemplateUpdate(updatedTemplate);
+    onTemplateUpdate({ ...template, fields: [...template.fields, newField] });
+    setSelectedFieldId(newField.id); // Auto-select the new field
   };
 
   const updateField = (fieldId: string, updates: Partial<CardField>) => {
-    const updatedFields = template.fields.map(field =>
+    const updatedFields = template.fields.map((field) =>
       field.id === fieldId ? { ...field, ...updates } : field
     );
     onTemplateUpdate({ ...template, fields: updatedFields });
   };
 
   const deleteField = (fieldId: string) => {
-    const updatedFields = template.fields.filter(field => field.id !== fieldId);
+    const updatedFields = template.fields.filter(
+      (field) => field.id !== fieldId
+    );
     onTemplateUpdate({ ...template, fields: updatedFields });
-    setSelectedField(null);
+    if (selectedFieldId === fieldId) setSelectedFieldId(null);
+    if (editingFieldId === fieldId) setEditingFieldId(null);
   };
 
-  const handleMouseDown = (e: React.MouseEvent, fieldId: string) => {
-    e.preventDefault();
-    setSelectedField(fieldId);
+  const handleMouseDown = (e: React.MouseEvent, field: CardField) => {
+    e.stopPropagation(); // Prevent canvas click from deselecting
+    setSelectedFieldId(field.id);
     setIsDragging(true);
-    
-    const field = template.fields.find(f => f.id === fieldId);
-    if (field) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        setDragOffset({
-          x: e.clientX - rect.left - field.x,
-          y: e.clientY - rect.top - field.y
-        });
-      }
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: e.clientX - rect.left - field.x * pxPerMm,
+        y: e.clientY - rect.top - field.y * pxPerMm,
+      });
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && selectedField) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const x = e.clientX - rect.left - dragOffset.x;
-        const y = e.clientY - rect.top - dragOffset.y;
-        
-        updateField(selectedField, { x: Math.max(0, x), y: Math.max(0, y) });
-      }
+    if (!isDragging || !selectedFieldId) return;
+
+    const field = template.fields.find((f) => f.id === selectedFieldId);
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect && field) {
+      // Calculate new position in pixels
+      let newX_px = e.clientX - rect.left - dragOffset.x;
+      let newY_px = e.clientY - rect.top - dragOffset.y;
+
+      // Constrain within canvas boundaries
+      const fieldWidth_px = field.width * pxPerMm;
+      const fieldHeight_px = field.height * pxPerMm;
+
+      newX_px = Math.max(
+        0,
+        Math.min(newX_px, canvasSize.width - fieldWidth_px)
+      );
+      newY_px = Math.max(
+        0,
+        Math.min(newY_px, canvasSize.height - fieldHeight_px)
+      );
+
+      updateField(selectedFieldId, {
+        x: newX_px / pxPerMm,
+        y: newY_px / pxPerMm,
+      });
     }
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
+  const handleMouseUp = () => setIsDragging(false);
+
+  // Deselect when clicking on canvas background
+  const handleCanvasMouseDown = () => {
+    setSelectedFieldId(null);
+    setEditingFieldId(null);
   };
 
+  // Keyboard support for deleting fields
   useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => document.removeEventListener('mouseup', handleMouseUp);
-    }
-  }, [isDragging]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedFieldId) {
+        deleteField(selectedFieldId);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedFieldId]);
 
-  const selectedFieldData = selectedField ? template.fields.find(f => f.id === selectedField) : null;
+  const editingFieldData = editingFieldId
+    ? template.fields.find((f) => f.id === editingFieldId)
+    : null;
 
   return (
-    <div className="flex-1 bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+    <div className="flex-1 bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold text-gray-800">Design Canvas</h2>
           {template.isDoubleSided && (
             <div className="flex bg-gray-100 rounded-md">
               <button
-                onClick={() => setCurrentSide('front')}
+                onClick={() => setCurrentSide("front")}
                 className={`px-3 py-1 rounded-l-md text-sm font-medium transition-colors ${
-                  currentSide === 'front'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-200'
+                  currentSide === "front"
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 Front
               </button>
               <button
-                onClick={() => setCurrentSide('back')}
+                onClick={() => setCurrentSide("back")}
                 className={`px-3 py-1 rounded-r-md text-sm font-medium transition-colors ${
-                  currentSide === 'back'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-200'
+                  currentSide === "back"
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 Back
@@ -151,9 +221,9 @@ export default function DesignCanvas({
         </div>
       </div>
 
-      <div className="flex h-96">
+      <div className="flex flex-1 overflow-hidden">
         {/* Available Fields Panel */}
-        <div className="w-64 border-r border-gray-200 p-4">
+        <div className="w-64 border-r border-gray-200 p-4 overflow-y-auto">
           <h3 className="font-medium text-gray-800 mb-3">Available Fields</h3>
           <div className="space-y-2">
             {availableFields.map((field) => (
@@ -163,202 +233,63 @@ export default function DesignCanvas({
                 className="w-full text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors"
               >
                 <div className="font-medium text-gray-800">{field.label}</div>
-                <div className="text-xs text-gray-500 truncate">{field.value}</div>
+                <div className="text-xs text-gray-500 truncate">
+                  {field.value}
+                </div>
               </button>
             ))}
           </div>
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 p-4 bg-gray-50">
-          <div className="relative mx-auto bg-white border-2 border-gray-300 rounded-lg overflow-hidden shadow-lg">
-            <div
-              ref={canvasRef}
-              className="relative bg-white cursor-crosshair"
-              style={{
-                width: template.width,
-                height: template.height,
-                backgroundImage: currentSide === 'front' 
-                  ? `url(${template.frontImage})` 
+        <div
+          className="flex-1 p-6 bg-gray-50 flex items-center justify-center overflow-auto"
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <div
+            ref={canvasRef}
+            className="relative bg-white border-2 border-gray-300 rounded-lg overflow-hidden shadow-lg flex-shrink-0"
+            style={{
+              width: `${canvasSize.width}px`,
+              height: `${canvasSize.height}px`,
+              backgroundImage:
+                currentSide === "front"
+                  ? `url(${template.frontImage})`
                   : `url(${template.backImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat'
-              }}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-            >
-              {template.fields
-                .filter(field => field.side === currentSide)
-                .map((field) => (
-                <div
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
+            onMouseDown={handleCanvasMouseDown}
+          >
+            {template.fields
+              .filter((field) => field.side === currentSide)
+              .sort((a, b) => (a.layer || 0) - (b.layer || 0)) // Ensure correct layering
+              .map((field) => (
+                <CanvasField
                   key={field.id}
-                  className={`absolute cursor-move border-2 transition-colors ${
-                    selectedField === field.id
-                      ? 'border-blue-500 bg-blue-50 bg-opacity-50'
-                      : 'border-transparent hover:border-gray-300'
-                  }`}
-                  style={{
-                    left: field.x,
-                    top: field.y,
-                    width: field.width,
-                    height: field.height,
-                    fontSize: field.fontSize,
-                    fontFamily: field.fontFamily,
-                    color: field.color,
-                    textAlign: field.textAlign,
-                    fontWeight: field.fontWeight,
-                    transform: field.rotation ? `rotate(${field.rotation}deg)` : 'none',
-                    zIndex: field.layer,
-                    padding: '2px',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, field.id)}
-                >
-                  {field.key === 'photo' ? (
-                    <img
-                      src={field.value}
-                      alt="Photo"
-                      className="w-full h-full object-cover rounded"
-                      draggable={false}
-                    />
-                  ) : (
-                    field.value
-                  )}
-                </div>
+                  field={field}
+                  pxPerMm={pxPerMm}
+                  isSelected={selectedFieldId === field.id}
+                  onMouseDown={(e) => handleMouseDown(e, field)}
+                  onDoubleClick={() => setEditingFieldId(field.id)}
+                />
               ))}
+            <div className="absolute left-2 bottom-2 text-xs text-gray-400 bg-white/70 px-2 py-1 rounded">
+              {MM_HEIGHT}mm × {MM_WIDTH}mm
             </div>
           </div>
         </div>
 
-        {/* Properties Panel */}
-        {selectedFieldData && (
-          <div className="w-80 border-l border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-gray-800">Field Properties</h3>
-              <button
-                onClick={() => deleteField(selectedFieldData.id)}
-                className="p-1 text-red-500 hover:bg-red-50 rounded"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              {/* Position */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-gray-500">X</label>
-                    <input
-                      type="number"
-                      value={selectedFieldData.x}
-                      onChange={(e) => updateField(selectedFieldData.id, { x: parseInt(e.target.value) })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500">Y</label>
-                    <input
-                      type="number"
-                      value={selectedFieldData.y}
-                      onChange={(e) => updateField(selectedFieldData.id, { y: parseInt(e.target.value) })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Size */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Size</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-gray-500">Width</label>
-                    <input
-                      type="number"
-                      value={selectedFieldData.width}
-                      onChange={(e) => updateField(selectedFieldData.id, { width: parseInt(e.target.value) })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500">Height</label>
-                    <input
-                      type="number"
-                      value={selectedFieldData.height}
-                      onChange={(e) => updateField(selectedFieldData.id, { height: parseInt(e.target.value) })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Font Properties (for text fields) */}
-              {selectedFieldData.key !== 'photo' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
-                    <input
-                      type="number"
-                      value={selectedFieldData.fontSize}
-                      onChange={(e) => updateField(selectedFieldData.id, { fontSize: parseInt(e.target.value) })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-                    <input
-                      type="color"
-                      value={selectedFieldData.color}
-                      onChange={(e) => updateField(selectedFieldData.id, { color: e.target.value })}
-                      className="w-full h-8 border border-gray-300 rounded"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Text Align</label>
-                    <select
-                      value={selectedFieldData.textAlign}
-                      onChange={(e) => updateField(selectedFieldData.id, { textAlign: e.target.value as 'left' | 'center' | 'right' })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                    >
-                      <option value="left">Left</option>
-                      <option value="center">Center</option>
-                      <option value="right">Right</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Font Weight</label>
-                    <select
-                      value={selectedFieldData.fontWeight}
-                      onChange={(e) => updateField(selectedFieldData.id, { fontWeight: e.target.value as 'normal' | 'bold' })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="bold">Bold</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {/* Layer */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Layer</label>
-                <input
-                  type="number"
-                  value={selectedFieldData.layer}
-                  onChange={(e) => updateField(selectedFieldData.id, { layer: parseInt(e.target.value) })}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Properties Sidebar */}
+        <FieldPropertiesPanel
+          field={editingFieldData}
+          onUpdate={updateField}
+          onDelete={deleteField}
+          onClose={() => setEditingFieldId(null)}
+        />
       </div>
     </div>
   );

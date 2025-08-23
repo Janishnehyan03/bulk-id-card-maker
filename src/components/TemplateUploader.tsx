@@ -13,7 +13,7 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
   const [templateName, setTemplateName] = useState('');
   const [isDoubleSided, setIsDoubleSided] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 340, height: 215 });
-  
+
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,11 +48,11 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
       width: dimensions.width,
       height: dimensions.height,
       isDoubleSided,
-      fields: []
+      fields: [],
     };
 
     onTemplateCreate(template);
-    
+
     // Reset form
     setTemplateName('');
     setFrontImage('');
@@ -63,7 +63,7 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4 text-gray-800">Upload ID Card Template</h2>
-      
+
       {/* Template Name */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -87,7 +87,9 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
           <input
             type="number"
             value={dimensions.width}
-            onChange={(e) => setDimensions(prev => ({ ...prev, width: parseInt(e.target.value) }))}
+            onChange={(e) =>
+              setDimensions((prev) => ({ ...prev, width: parseInt(e.target.value || '0', 10) }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -98,7 +100,9 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
           <input
             type="number"
             value={dimensions.height}
-            onChange={(e) => setDimensions(prev => ({ ...prev, height: parseInt(e.target.value) }))}
+            onChange={(e) =>
+              setDimensions((prev) => ({ ...prev, height: parseInt(e.target.value || '0', 10) }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
