@@ -137,7 +137,6 @@ function App() {
         {/* Main layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-6">
           {/* Left Panel */}
-<<<<<<< HEAD
           <aside className="lg:sticky lg:top-[calc(56px+24px)] lg:self-start space-y-4">
             <section className="bg-white rounded-lg border border-gray-200">
               <div className="p-4 border-b border-gray-200">
@@ -150,14 +149,6 @@ function App() {
                 )}
               </div>
             </section>
-=======
-          <div className="space-y-6">
-            <DataImporter onDataImport={handleDataImport} />
-            {data.length > 0 && (
-              <TemplateUploader onTemplateCreate={handleTemplateCreate} />
-            )}
-          </div>
->>>>>>> 210c84bcfc01ed9cf2d9007900b65d9920166652
 
             {/* Context summary */}
             <section className="bg-white rounded-lg border border-gray-200">
