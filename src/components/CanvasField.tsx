@@ -51,7 +51,7 @@ export const CanvasField = ({ field, pxPerMm, isSelected, onMouseDown, onDoubleC
     >
       {field.key === 'photo' ? (
         <img
-          src={field.value}
+          src={field.value || 'https://via.placeholder.com/150x150?text=No+Photo'}
           alt="User"
           className="w-full h-full object-cover"
           style={{

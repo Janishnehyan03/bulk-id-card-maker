@@ -58,6 +58,7 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
     setFrontImage('');
     setBackImage('');
     setIsDoubleSided(false);
+    setDimensions({ width: 340, height: 215 }); // Reset dimensions too
   };
 
   return (

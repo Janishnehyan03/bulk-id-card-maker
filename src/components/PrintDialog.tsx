@@ -443,6 +443,163 @@ export default function PrintDialog({
       setIsGenerating(false);
     }
   };
+<<<<<<< HEAD
+=======
+  
+  const generateSingleSidedPDF = async (pdf: jsPDF) => {
+    const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
+
+    for (let i = 0; i < data.length; i++) {
+      const pageIndex = Math.floor(i / ITEMS_PER_PAGE);
+      const indexOnPage = i % ITEMS_PER_PAGE;
+
+      if (indexOnPage === 0 && pageIndex > 0) {
+        pdf.addPage();
+      }
+
+      setProgress(Math.round(((i + 1) / data.length) * 100));
+
+      const row = Math.floor(indexOnPage / ITEMS_PER_ROW);
+      const col = indexOnPage % ITEMS_PER_ROW;
+      
+      const x = printSettings.margin + col * CARD_WIDTH_MM;
+      const y = printSettings.margin + row * CARD_HEIGHT_MM;
+      
+      const cardImage = await renderCardToImage(data[i], "front");
+      pdf.addImage(cardImage, "PNG", x, y, CARD_WIDTH_MM, CARD_HEIGHT_MM);
+    }
+  };
+
+  const generateDoubleSidedPDF = async (pdf: jsPDF) => {
+    const cardsPerPage = ITEMS_PER_PAGE / 2; // 10 cards (10 fronts, 10 backs)
+    const totalPages = Math.ceil(data.length / cardsPerPage);
+
+    for (let page = 0; page < totalPages; page++) {
+      if (page > 0) {
+        pdf.addPage();
+      }
+
+      for (let i = 0; i < cardsPerPage; i++) {
+        const dataIndex = page * cardsPerPage + i;
+        if (dataIndex >= data.length) break;
+
+        setProgress(Math.round(((dataIndex + 1) / data.length) * 100));
+
+        const record = data[dataIndex];
+        const row = Math.floor(i / ITEMS_PER_ROW);
+        const col = i % ITEMS_PER_ROW;
+        
+        // --- Render and place FRONT side (top half of the page) ---
+        const frontX = printSettings.margin + col * CARD_WIDTH_MM;
+        const frontY = printSettings.margin + row * CARD_HEIGHT_MM;
+        const frontImage = await renderCardToImage(record, "front");
+        pdf.addImage(frontImage, "PNG", frontX, frontY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
+        
+        // --- Render and place BACK side (bottom half, no rotation) ---
+        const backPositionIndex = i + cardsPerPage; // Place in the second half
+        const backRow = Math.floor(backPositionIndex / ITEMS_PER_ROW);
+        const backCol = backPositionIndex % ITEMS_PER_ROW;
+        const backX = printSettings.margin + backCol * CARD_WIDTH_MM;
+        const backY = printSettings.margin + backRow * CARD_HEIGHT_MM;
+        
+        const backImage = await renderCardToImage(record, "back");
+        
+        // Add back image without rotation
+        pdf.addImage(backImage, "PNG", backX, backY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
+      }
+    }
+  };
+
+  const renderCardToImage = async (record: any, side: "front" | "back"): Promise<string> => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Render at 300 DPI for high quality printing
+    const dpi = 300;
+    const scaleFactor = dpi / 25.4; // Pixels per mm
+    canvas.width = Math.round(CARD_WIDTH_MM * scaleFactor);
+    canvas.height = Math.round(CARD_HEIGHT_MM * scaleFactor);
+
+    if (!ctx) throw new Error("Could not get canvas context");
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const backgroundImage = side === "front" ? template.frontImage : template.backImage;
+    if (backgroundImage) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve) => {
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve();
+        };
+        img.onerror = () => resolve(); // Continue even if background fails
+        img.src = backgroundImage;
+      });
+    }
+
+    const sideFields = template.fields.filter((field) => field.side === side);
+    for (const field of sideFields) {
+      // Use the actual data from the record, not the field's stored value
+      const fieldValue = record[field.key] || field.value || "";
+      ctx.save();
+
+      if (field.key === "photo" && fieldValue) {
+        const photoImg = new Image();
+        photoImg.crossOrigin = "anonymous";
+        await new Promise<void>((resolve) => {
+          photoImg.onload = () => {
+            ctx.drawImage(
+              photoImg,
+              field.x * scaleFactor,
+              field.y * scaleFactor,
+              field.width * scaleFactor,
+              field.height * scaleFactor
+            );
+            resolve();
+          };
+          photoImg.onerror = () => resolve();
+          photoImg.src = fieldValue;
+        });
+      } else {
+        // Correct font size conversion (Points to Pixels)
+        // 1 point = 1/72 inch. DPI = pixels/inch. So, pt_px = pt/72 * DPI
+        const fontSizePx = (field.fontSize / 72) * dpi;
+        ctx.fillStyle = field.color;
+        ctx.font = `${field.fontWeight} ${fontSizePx}px ${field.fontFamily}`;
+        ctx.textAlign = field.textAlign as CanvasTextAlign;
+        ctx.textBaseline = "middle"; // For better vertical alignment
+
+        const textX = field.x * scaleFactor;
+        const textY = (field.y + field.height / 2) * scaleFactor; // Center vertically
+
+        let alignedX = textX;
+        if (field.textAlign === "center") {
+          alignedX += (field.width * scaleFactor) / 2;
+        } else if (field.textAlign === "right") {
+          alignedX += field.width * scaleFactor;
+        }
+
+        // Handle individual field rotation
+        if (field.rotation) {
+          const centerX = textX + (field.width * scaleFactor) / 2;
+          const centerY = textY; // Already middle
+          ctx.translate(centerX, centerY);
+          ctx.rotate(field.rotation * (Math.PI / 180));
+          ctx.translate(-centerX, -centerY);
+        }
+        
+        ctx.fillText(fieldValue, alignedX, textY);
+      }
+      ctx.restore();
+    }
+    return canvas.toDataURL("image/png", 1.0);
+  };
+  
+  if (!isOpen) return null;
+>>>>>>> 210c84bcfc01ed9cf2d9007900b65d9920166652
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
