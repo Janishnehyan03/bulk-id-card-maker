@@ -46,6 +46,9 @@ export interface CardField {
   fontWeight: 'normal' | 'bold';
   layer: number;
   rotation?: number;
+  lineHeight?: number;
+  borderRadius?: number;
+  
 }
 
 export interface CardTemplate {

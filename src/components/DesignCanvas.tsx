@@ -1,8 +1,7 @@
-import { Edit, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { CardField, CardTemplate, DataSource } from "../types";
-import { FieldPropertiesPanel } from "./FieldProperties";
 import { CanvasField } from "./CanvasField.tsx"; // <-- New Component
+import { FieldPropertiesPanel } from "./FieldProperties";
 
 // --- Helpers moved outside the component for better organization ---
 const MM_WIDTH = 90,
