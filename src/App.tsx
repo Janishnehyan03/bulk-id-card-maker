@@ -1,10 +1,14 @@
-import { CreditCard, Download, Eye, Users, ChevronDown } from "lucide-react";
+import { CreditCard, Download, Eye, Users, ChevronDown, LogIn } from "lucide-react";
 import { useState } from "react";
 import DataImporter from "./components/DataImporter";
 import DesignCanvas from "./components/DesignCanvas";
 import PrintDialog from "./components/PrintDialog";
 import TemplateUploader from "./components/TemplateUploader";
+import { TemplateManager } from "./components/TemplateManager";
+import { AuthModal } from "./components/AuthModal";
+import { UserMenu } from "./components/UserMenu";
 import { CardTemplate, DataSource } from "./types";
+import { useAuth } from "./contexts/AuthContext";
 
 function App() {
   const [data, setData] = useState<DataSource>([]);
@@ -12,8 +16,11 @@ function App() {
   const [template, setTemplate] = useState<CardTemplate | null>(null);
   const [selectedRecord, setSelectedRecord] = useState(0);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   // UI: Control Data Import panel (collapsible)
   const [importOpen, setImportOpen] = useState(true);
+
+  const { currentUser } = useAuth();
 
   const handleDataImport = (
     importedData: DataSource,
@@ -74,6 +81,19 @@ function App() {
                 >
                   <Download className="h-5 w-5" />
                   <span>Print Cards</span>
+                </button>
+              )}
+              
+              {/* Authentication UI */}
+              {currentUser ? (
+                <UserMenu />
+              ) : (
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Sign In</span>
                 </button>
               )}
             </div>
@@ -204,6 +224,23 @@ function App() {
               </div>
             </section>
 
+            {/* Template Manager - Save/Load Templates */}
+            {currentUser && (
+              <section className="bg-white/95 rounded-2xl border border-green-100 shadow-lg mb-0">
+                <div className="px-5 py-3 border-b border-green-100">
+                  <h2 className="text-base font-bold text-green-800">
+                    My Templates
+                  </h2>
+                </div>
+                <div className="p-5">
+                  <TemplateManager
+                    currentTemplate={template}
+                    onTemplateLoad={handleTemplateCreate}
+                  />
+                </div>
+              </section>
+            )}
+
             {/* Context summary */}
             <section className="bg-white/95 rounded-2xl border border-gray-100 shadow-lg">
               <div className="px-5 py-3 border-b border-gray-100">
@@ -315,6 +352,12 @@ function App() {
           dataType={dataType}
         />
       )}
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }
