@@ -4,10 +4,11 @@ import { CanvasField } from "./CanvasField.tsx"; // <-- New Component
 import { FieldPropertiesPanel } from "./FieldProperties";
 
 // --- Helpers moved outside the component for better organization ---
-const MM_WIDTH = 90,
-  MM_HEIGHT = 57; // mm (standard card)
+// Portrait dimensions: width < height
+const MM_WIDTH = 57,
+  MM_HEIGHT = 90; // mm (standard portrait card)
 
-function getAvailableFields(record: any, type: "employee" | "student") {
+function getAvailableFields(record: any, _type: "employee" | "student") {
   if (!record) return [];
   const fields = Object.keys(record).filter((key) => key !== "id");
   return fields.map((key) => ({
@@ -23,7 +24,7 @@ function getImageSize(url: string): Promise<{ width: number; height: number }> {
     const img = new window.Image();
     img.onload = () =>
       resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => resolve({ width: 900, height: 570 }); // fallback
+    img.onerror = () => resolve({ width: 570, height: 900 }); // fallback portrait
     img.src = url;
   });
 }
@@ -50,54 +51,78 @@ export default function DesignCanvas({
   const [currentSide, setCurrentSide] = useState<"front" | "back">("front");
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [canvasSize, setCanvasSize] = useState({ width: 900, height: 570 });
+  const [canvasSize, setCanvasSize] = useState({ width: 570, height: 900 });
 
   const currentRecord = data[selectedRecord];
   const availableFields = getAvailableFields(currentRecord, dataType);
+
+  // Always portrait: pxPerMm based on portrait width
   const pxPerMm = canvasSize.width / MM_WIDTH;
 
   useEffect(() => {
+    // Enforce portrait on template (width < height)
+    let enforcedWidth = template.width;
+    let enforcedHeight = template.height;
+    if (enforcedWidth > enforcedHeight) {
+      // Swap to portrait if someone tries to load a landscape template
+      [enforcedWidth, enforcedHeight] = [enforcedHeight, enforcedWidth];
+    }
     const imgUrl =
       currentSide === "front" ? template.frontImage : template.backImage;
     if (imgUrl) {
-      getImageSize(imgUrl).then((size) => {
+      getImageSize(imgUrl).then(() => {
         // Use the template's specified dimensions or scale to fit within reasonable bounds
-        const maxW = 1200, maxH = 800; // Increased max size for better quality
-        const templateAspectRatio = template.width / template.height;
-        const imageAspectRatio = size.width / size.height;
-        
+        const maxW = 800,
+          maxH = 1200; // Portrait max size
+        // Always portrait aspect
         let newWidth, newHeight;
-        
-        // If template dimensions are reasonable, use them as base
-        if (template.width <= maxW && template.height <= maxH) {
-          newWidth = template.width;
-          newHeight = template.height;
+        if (enforcedWidth <= maxW && enforcedHeight <= maxH) {
+          newWidth = enforcedWidth;
+          newHeight = enforcedHeight;
         } else {
-          // Scale down template dimensions to fit
-          const scale = Math.min(maxW / template.width, maxH / template.height);
-          newWidth = Math.round(template.width * scale);
-          newHeight = Math.round(template.height * scale);
+          // Scale down template dimensions to fit portrait bounds
+          const scale = Math.min(maxW / enforcedWidth, maxH / enforcedHeight);
+          newWidth = Math.round(enforcedWidth * scale);
+          newHeight = Math.round(enforcedHeight * scale);
         }
-        
         setCanvasSize({
           width: newWidth,
           height: newHeight,
         });
       });
     } else {
-      // Use template dimensions or default
-      const maxW = 1200, maxH = 800;
-      if (template.width <= maxW && template.height <= maxH) {
-        setCanvasSize({ width: template.width, height: template.height });
+      // Use template dimensions or default, always portrait
+      const maxW = 800,
+        maxH = 1200;
+      if (enforcedWidth <= maxW && enforcedHeight <= maxH) {
+        setCanvasSize({ width: enforcedWidth, height: enforcedHeight });
       } else {
-        const scale = Math.min(maxW / template.width, maxH / template.height);
+        const scale = Math.min(maxW / enforcedWidth, maxH / enforcedHeight);
         setCanvasSize({
-          width: Math.round(template.width * scale),
-          height: Math.round(template.height * scale),
+          width: Math.round(enforcedWidth * scale),
+          height: Math.round(enforcedHeight * scale),
         });
       }
     }
-  }, [template.frontImage, template.backImage, template.width, template.height, currentSide]);
+    // If needed, forcibly update the template to portrait
+    if (
+      template.width !== enforcedWidth ||
+      template.height !== enforcedHeight
+    ) {
+      onTemplateUpdate({
+        ...template,
+        width: enforcedWidth,
+        height: enforcedHeight,
+      });
+    }
+    // eslint-disable-next-line
+  }, [
+    template.frontImage,
+    template.backImage,
+    template.width,
+    template.height,
+    currentSide,
+  ]);
 
   const addField = (fieldInfo: {
     key: string;
@@ -108,7 +133,7 @@ export default function DesignCanvas({
       id: Date.now().toString(),
       key: fieldInfo.key,
       label: fieldInfo.label,
-      value: currentRecord[fieldInfo.key] || fieldInfo.value, // Use current record data
+      value: (currentRecord as any)[fieldInfo.key] || fieldInfo.value, // Use current record data
       side: currentSide,
       x: 10,
       y: 10, // Start at a corner
@@ -128,12 +153,16 @@ export default function DesignCanvas({
 
   const updateField = (fieldId: string, updates: Partial<CardField>) => {
     const updatedFields = template.fields.map((field) =>
-      field.id === fieldId ? { 
-        ...field, 
-        ...updates,
-        // Update the value with current record data when the field is updated
-        value: updates.value !== undefined ? updates.value : (currentRecord[field.key] || field.value)
-      } : field
+      field.id === fieldId
+        ? {
+            ...field,
+            ...updates,
+            value:
+              updates.value !== undefined
+                ? updates.value
+                : (currentRecord as any)[field.key] || field.value,
+          }
+        : field
     );
     onTemplateUpdate({ ...template, fields: updatedFields });
   };
@@ -212,12 +241,13 @@ export default function DesignCanvas({
 
   useEffect(() => {
     if (template.fields.length > 0) {
-      const updatedFields = template.fields.map(field => ({
+      const updatedFields = template.fields.map((field) => ({
         ...field,
-        value: currentRecord[field.key] || field.value
+        value: (currentRecord as any)[field.key] || field.value,
       }));
       onTemplateUpdate({ ...template, fields: updatedFields });
     }
+    // eslint-disable-next-line
   }, [selectedRecord, currentRecord]);
 
   const editingFieldData = editingFieldId
@@ -230,6 +260,7 @@ export default function DesignCanvas({
       <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold text-gray-800">Design Canvas</h2>
+          {/* No orientation toggle: portrait only */}
           {template.isDoubleSided && (
             <div className="flex bg-gray-100 rounded-md">
               <button
@@ -317,14 +348,14 @@ export default function DesignCanvas({
                 />
               ))}
             <div className="absolute left-2 bottom-2 text-xs text-gray-400 bg-white/70 px-2 py-1 rounded">
-              {MM_HEIGHT}mm × {MM_WIDTH}mm
+              {MM_WIDTH}mm × {MM_HEIGHT}mm
             </div>
           </div>
         </div>
 
         {/* Properties Sidebar */}
         <FieldPropertiesPanel
-          field={editingFieldData}
+          field={editingFieldData ?? null}
           onUpdate={updateField}
           onDelete={deleteField}
           onClose={() => setEditingFieldId(null)}

@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
-import { Upload, Users, GraduationCap, FileSpreadsheet } from 'lucide-react';
-import { DataSource } from '../types';
-import { demoEmployees, demoStudents } from '../data/demoData';
+// DataImporter.tsx
+import React, { useState, useRef } from "react";
+import { Upload, Users, GraduationCap, FileSpreadsheet } from "lucide-react";
+import { DataSource } from "../types";
+import { demoEmployees, demoStudents } from "../data/demoData";
 
 interface DataImporterProps {
-  onDataImport: (data: DataSource, type: 'employee' | 'student') => void;
+  onDataImport: (data: DataSource, type: "employee" | "student") => void;
 }
 
 export default function DataImporter({ onDataImport }: DataImporterProps) {
@@ -14,9 +15,9 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+    if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type === "dragleave") {
       setDragActive(false);
     }
   };
@@ -25,7 +26,7 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileUpload(files[0]);
@@ -33,23 +34,30 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
   };
 
   const handleFileUpload = (file: File) => {
-    if (file.type === 'application/json') {
+    if (file.type === "application/json") {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const data = JSON.parse(e.target?.result as string);
           if (Array.isArray(data)) {
-            // Auto-detect type based on common fields
-            const isEmployee = data.some(item => 'employeeId' in item || 'position' in item);
-            onDataImport(data, isEmployee ? 'employee' : 'student');
+            // Auto-detect type based on common fields (e.g., employeeId, position for employees)
+            const isEmployee = data.some(
+              (item) =>
+                ("employeeId" in item && typeof item.employeeId === "string") ||
+                ("position" in item && typeof item.position === "string")
+            );
+            onDataImport(data, isEmployee ? "employee" : "student");
+          } else {
+            alert("JSON file must contain an array of objects.");
           }
         } catch (error) {
-          alert('Invalid JSON file. Please check the format.');
+          console.error("Error parsing JSON:", error);
+          alert("Invalid JSON file. Please check the format.");
         }
       };
       reader.readAsText(file);
     } else {
-      alert('Please upload a JSON file.');
+      alert("Please upload a JSON file.");
     }
   };
 
@@ -58,18 +66,20 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
     if (file) {
       handleFileUpload(file);
     }
+    // Reset file input to allow re-uploading the same file if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">Import Data</h2>
-      
+    <div className="space-y-6">
       {/* File Upload Area */}
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive 
-            ? 'border-blue-400 bg-blue-50' 
-            : 'border-gray-300 hover:border-gray-400'
+          dragActive
+            ? "border-blue-400 bg-blue-50"
+            : "border-gray-300 hover:border-gray-400"
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -81,7 +91,7 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
           Drop your JSON file here, or click to select
         </p>
         <p className="text-sm text-gray-500 mb-4">
-          Upload employee or student data in JSON format
+          Upload employee or student data (JSON format)
         </p>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -92,36 +102,42 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json,.xlsx,.xls,.csv"
+          accept=".json"
           onChange={handleFileInputChange}
           className="hidden"
         />
       </div>
 
       {/* Excel Upload Info */}
-      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-start gap-2">
-          <FileSpreadsheet className="h-4 w-4 text-blue-600 mt-0.5" />
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start gap-3">
+          <FileSpreadsheet className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
           <div className="text-sm text-blue-800">
             <p className="font-medium">Excel/CSV Support Coming Soon</p>
-            <p className="text-blue-600">Currently supports JSON format. Excel upload will be available in the next update.</p>
+            <p className="text-blue-600">
+              Currently supports JSON format only. Excel & CSV upload will be
+              available in a future update.
+            </p>
           </div>
         </div>
       </div>
+
       {/* Demo Data Buttons */}
-      <div className="mt-6 pt-6 border-t border-gray-200">
-        <p className="text-sm font-medium text-gray-700 mb-3">Or use demo data:</p>
-        <div className="flex gap-3">
+      <div className="pt-6 border-t border-gray-200">
+        <p className="text-base font-medium text-gray-800 mb-3">
+          Or use demo data:
+        </p>
+        <div className="flex flex-wrap gap-3">
           <button
-            onClick={() => onDataImport(demoEmployees, 'employee')}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+            onClick={() => onDataImport(demoEmployees, "employee")}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
           >
             <Users className="h-4 w-4" />
             Employee Data
           </button>
           <button
-            onClick={() => onDataImport(demoStudents, 'student')}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            onClick={() => onDataImport(demoStudents, "student")}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm font-medium"
           >
             <GraduationCap className="h-4 w-4" />
             Student Data
