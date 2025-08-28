@@ -4,6 +4,7 @@ import DataImporter from "./components/DataImporter";
 import DesignCanvas from "./components/DesignCanvas";
 import PrintDialog from "./components/PrintDialog";
 import TemplateUploader from "./components/TemplateUploader";
+import { TemplateManager } from "./components/TemplateManager";
 import { AuthModal } from "./components/AuthModal";
 import { UserMenu } from "./components/UserMenu";
 import { CardTemplate, DataSource } from "./types";
@@ -222,6 +223,23 @@ function App() {
                 <TemplateUploader onTemplateCreate={handleTemplateCreate} />
               </div>
             </section>
+
+            {/* Template Manager - Save/Load Templates */}
+            {currentUser && (
+              <section className="bg-white/95 rounded-2xl border border-green-100 shadow-lg mb-0">
+                <div className="px-5 py-3 border-b border-green-100">
+                  <h2 className="text-base font-bold text-green-800">
+                    My Templates
+                  </h2>
+                </div>
+                <div className="p-5">
+                  <TemplateManager
+                    currentTemplate={template}
+                    onTemplateLoad={handleTemplateCreate}
+                  />
+                </div>
+              </section>
+            )}
 
             {/* Context summary */}
             <section className="bg-white/95 rounded-2xl border border-gray-100 shadow-lg">
