@@ -255,72 +255,76 @@ export default function DesignCanvas({
     : null;
 
   return (
-    <div className="flex-1 bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+    <div className="flex-1 bg-card rounded-xl shadow-md overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+      <div className="flex items-center justify-between p-4 border-b border-border bg-card sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-gray-800">Design Canvas</h2>
-          {/* No orientation toggle: portrait only */}
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            🎨 Design Canvas
+          </h2>
+
+          {/* Double Sided Toggle */}
           {template.isDoubleSided && (
-            <div className="flex bg-gray-100 rounded-md">
-              <button
-                onClick={() => setCurrentSide("front")}
-                className={`px-3 py-1 rounded-l-md text-sm font-medium transition-colors ${
-                  currentSide === "front"
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                Front
-              </button>
-              <button
-                onClick={() => setCurrentSide("back")}
-                className={`px-3 py-1 rounded-r-md text-sm font-medium transition-colors ${
-                  currentSide === "back"
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                Back
-              </button>
+            <div className="flex bg-muted rounded-full p-1 shadow-inner transition">
+              {(["front", "back"] as ("front" | "back")[]).map((side) => (
+                <button
+                  key={side}
+                  onClick={() => setCurrentSide(side)}
+                  className={`px-4 py-1 text-sm font-medium rounded-full transition-all ${
+                    currentSide === side
+                      ? "bg-blue-600 text-white shadow"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                  aria-pressed={currentSide === side}
+                >
+                  {side === "front" ? "Front" : "Back"}
+                </button>
+              ))}
             </div>
           )}
         </div>
-        <div className="text-sm text-gray-600">
-          Record: {selectedRecord + 1} of {data.length}
+
+        <div className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-md border border-border">
+          Record <span className="font-medium">{selectedRecord + 1}</span> /{" "}
+          {data.length}
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Available Fields Panel */}
-        <div className="w-64 border-r border-gray-200 p-4 overflow-y-auto">
-          <h3 className="font-medium text-gray-800 mb-3">Available Fields</h3>
-          <div className="space-y-2">
+        <aside
+          className="w-72 border-r border-border p-4 overflow-y-auto bg-muted/80"
+          aria-label="Available Fields"
+        >
+          <h3 className="font-semibold text-foreground mb-3">
+            Available Fields
+          </h3>
+          <div className="space-y-3">
             {availableFields.map((field) => (
               <button
                 key={field.key}
                 onClick={() => addField(field)}
-                className="w-full text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors"
+                className="w-full text-left p-3 bg-background hover:bg-muted rounded-lg border border-border shadow-sm transition"
               >
-                <div className="font-medium text-gray-800">{field.label}</div>
-                <div className="text-xs text-gray-500 truncate">
+                <div className="font-medium text-foreground">{field.label}</div>
+                <div className="text-xs text-muted-foreground truncate">
                   {field.value}
                 </div>
               </button>
             ))}
           </div>
-        </div>
+        </aside>
 
-        {/* Canvas Area */}
+        {/* Canvas */}
         <div
-          className="flex-1 p-6 bg-gray-50 flex items-center justify-center overflow-auto"
+          className="flex-1 p-6 bg-muted flex items-center justify-center overflow-auto"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         >
           <div
             ref={canvasRef}
-            className="relative bg-white border-2 border-gray-300 rounded-lg overflow-hidden shadow-lg flex-shrink-0"
+            className="relative bg-background border border-border rounded-lg overflow-hidden shadow-lg flex-shrink-0"
             style={{
               width: `${canvasSize.width}px`,
               height: `${canvasSize.height}px`,
@@ -330,13 +334,13 @@ export default function DesignCanvas({
                   : `url(${template.backImage})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
             }}
             onMouseDown={handleCanvasMouseDown}
+            aria-label="ID Card Canvas"
           >
             {template.fields
               .filter((field) => field.side === currentSide)
-              .sort((a, b) => (a.layer || 0) - (b.layer || 0)) // Ensure correct layering
+              .sort((a, b) => (a.layer || 0) - (b.layer || 0))
               .map((field) => (
                 <CanvasField
                   key={field.id}
@@ -347,7 +351,9 @@ export default function DesignCanvas({
                   onDoubleClick={() => setEditingFieldId(field.id)}
                 />
               ))}
-            <div className="absolute left-2 bottom-2 text-xs text-gray-400 bg-white/70 px-2 py-1 rounded">
+
+            {/* Canvas Size Badge */}
+            <div className="absolute left-2 bottom-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-md shadow-sm border border-border pointer-events-none">
               {MM_WIDTH}mm × {MM_HEIGHT}mm
             </div>
           </div>

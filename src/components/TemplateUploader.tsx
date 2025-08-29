@@ -1,29 +1,34 @@
-import React, { useState, useRef } from 'react';
-import { Image as ImageIcon, Layers, RotateCcw } from 'lucide-react';
-import { CardTemplate } from '../types';
-import { v4 as uuidv4 } from 'uuid';
+import { Image as ImageIcon, Layers, RotateCcw } from "lucide-react";
+import { useRef, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { CardTemplate } from "../types";
 
+/**
+ * Redesigned TemplateUploader:
+ * - Accessible, modern, consistent with SaaS design system.
+ * - Smooth CSS transitions, dark/light mode, micro-interactions.
+ * - Clean layout, clear states, and a11y improvements.
+ */
 interface TemplateUploaderProps {
   onTemplateCreate: (template: CardTemplate) => void;
 }
 
 export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderProps) {
-  const [frontImage, setFrontImage] = useState<string>('');
-  const [backImage, setBackImage] = useState<string>('');
-  const [templateName, setTemplateName] = useState('');
+  const [frontImage, setFrontImage] = useState<string>("");
+  const [backImage, setBackImage] = useState<string>("");
+  const [templateName, setTemplateName] = useState("");
   const [isDoubleSided, setIsDoubleSided] = useState(false);
-  // Portrait default: 340w x 540h (for better aspect for ID cards)
   const [dimensions, setDimensions] = useState({ width: 340, height: 540 });
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = (file: File, type: 'front' | 'back') => {
-    if (file.type.startsWith('image/')) {
+  const handleImageUpload = (file: File, type: "front" | "back") => {
+    if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageUrl = e.target?.result as string;
-        if (type === 'front') {
+        if (type === "front") {
           setFrontImage(imageUrl);
         } else {
           setBackImage(imageUrl);
@@ -31,13 +36,13 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
       };
       reader.readAsDataURL(file);
     } else {
-      alert('Please upload an image file.');
+      alert("Please upload an image file.");
     }
   };
 
   const handleCreateTemplate = () => {
     if (!templateName || !frontImage) {
-      alert('Please provide a template name and front image.');
+      alert("Please provide a template name and front image.");
       return;
     }
 
@@ -55,177 +60,199 @@ export default function TemplateUploader({ onTemplateCreate }: TemplateUploaderP
     onTemplateCreate(template);
 
     // Reset form
-    setTemplateName('');
-    setFrontImage('');
-    setBackImage('');
+    setTemplateName("");
+    setFrontImage("");
+    setBackImage("");
     setIsDoubleSided(false);
-    setDimensions({ width: 340, height: 540 }); // Reset to portrait defaults
+    setDimensions({ width: 340, height: 540 });
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-blue-50">
-      <h2 className="text-xl font-bold mb-4 text-blue-800">Upload ID Card Template</h2>
+    <section
+      className="bg-card rounded-2xl shadow-lg p-8 border border-border space-y-7 transition-colors"
+      aria-labelledby="upload-id-card-template"
+    >
+      {/* Header */}
+      <h2
+        id="upload-id-card-template"
+        className="text-xl font-bold flex items-center gap-2 text-primary"
+      >
+        <span className="bg-blue-100 dark:bg-blue-950 p-2 rounded-lg">
+          <Layers className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        </span>
+        Upload ID Card Template
+      </h2>
+
       {/* Template Name */}
-      <div className="mb-4">
-        <label className="block text-sm font-semibold text-blue-700 mb-2">
+      <div>
+        <label
+          htmlFor="template-name"
+          className="block text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2"
+        >
           Template Name
         </label>
         <input
+          id="template-name"
           type="text"
           value={templateName}
           onChange={(e) => setTemplateName(e.target.value)}
           placeholder="e.g., Employee ID Card"
-          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 border border-blue-200 dark:border-blue-800 bg-background rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition text-foreground"
+          autoComplete="off"
         />
       </div>
-      {/* Dimensions */}
-      <div className="mb-4 grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-blue-700 mb-2">
-            Width (px)
-          </label>
-          <input
-            type="number"
-            value={dimensions.width}
-            min={100}
-            max={1000}
-            onChange={(e) =>
-              setDimensions((prev) => ({ ...prev, width: parseInt(e.target.value || '0', 10) }))
-            }
-            className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-blue-700 mb-2">
-            Height (px)
-          </label>
-          <input
-            type="number"
-            value={dimensions.height}
-            min={100}
-            max={1500}
-            onChange={(e) =>
-              setDimensions((prev) => ({ ...prev, height: parseInt(e.target.value || '0', 10) }))
-            }
-            className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
+
       {/* Double-sided toggle */}
-      <div className="mb-6">
-        <label className="flex items-center gap-2">
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={isDoubleSided}
             onChange={(e) => setIsDoubleSided(e.target.checked)}
-            className="rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+            className="rounded border-blue-300 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
-          <span className="text-sm font-semibold text-blue-700">Double-sided ID Card</span>
+          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+            Double-sided ID Card
+          </span>
         </label>
       </div>
-      {/* Front Image Upload */}
-      <div className="mb-4">
-        <label className="block text-sm font-semibold text-blue-700 mb-2">
-          Front Side Template
-        </label>
-        <div className="border-2 border-dashed border-blue-200 rounded-xl p-4 bg-blue-50">
-          {frontImage ? (
-            <div className="relative">
-              <img
-                src={frontImage}
-                alt="Front template"
-                className="max-w-full h-auto rounded shadow border border-blue-100"
-                style={{ maxHeight: '200px' }}
-              />
-              <button
-                type="button"
-                onClick={() => setFrontImage('')}
-                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="text-center">
-              <ImageIcon className="mx-auto h-8 w-8 text-blue-400 mb-2" />
-              <button
-                type="button"
-                onClick={() => frontInputRef.current?.click()}
-                className="text-blue-600 hover:text-blue-700 font-semibold"
-              >
-                Click to upload front side
-              </button>
-            </div>
-          )}
-        </div>
-        <input
-          ref={frontInputRef}
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleImageUpload(file, 'front');
-          }}
-          className="hidden"
-        />
-      </div>
-      {/* Back Image Upload (if double-sided) */}
-      {isDoubleSided && (
-        <div className="mb-4">
-          <label className="block text-sm font-semibold text-blue-700 mb-2">
-            Back Side Template
+
+      {/* Uploads */}
+      <div className="space-y-6">
+        {/* Front */}
+        <div>
+          <label
+            htmlFor="front-upload"
+            className="block text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2"
+          >
+            Front Side Template
           </label>
-          <div className="border-2 border-dashed border-blue-200 rounded-xl p-4 bg-blue-50">
-            {backImage ? (
-              <div className="relative">
+          <div
+            className="border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-xl p-6 bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors text-center relative group"
+            tabIndex={0}
+            aria-label="Front side template upload"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !frontImage) {
+                frontInputRef.current?.click();
+              }
+            }}
+          >
+            {frontImage ? (
+              <div className="relative inline-block">
                 <img
-                  src={backImage}
-                  alt="Back template"
-                  className="max-w-full h-auto rounded shadow border border-blue-100"
-                  style={{ maxHeight: '200px' }}
+                  src={frontImage}
+                  alt="Front template preview"
+                  className="max-h-48 rounded-lg shadow border border-blue-100 dark:border-blue-900"
                 />
                 <button
                   type="button"
-                  onClick={() => setBackImage('')}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                  aria-label="Remove front image"
+                  onClick={() => setFrontImage("")}
+                  className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full shadow hover:bg-red-600 transition"
                 >
                   <RotateCcw className="h-4 w-4" />
                 </button>
               </div>
             ) : (
-              <div className="text-center">
-                <Layers className="mx-auto h-8 w-8 text-blue-400 mb-2" />
+              <>
+                <ImageIcon className="mx-auto h-10 w-10 text-blue-400 mb-2" />
                 <button
+                  id="front-upload"
                   type="button"
-                  onClick={() => backInputRef.current?.click()}
-                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                  onClick={() => frontInputRef.current?.click()}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold focus:underline"
                 >
-                  Click to upload back side
+                  Click to upload front side
                 </button>
-              </div>
+              </>
             )}
           </div>
           <input
-            ref={backInputRef}
+            ref={frontInputRef}
             type="file"
             accept="image/*"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleImageUpload(file, 'back');
+              if (file) handleImageUpload(file, "front");
             }}
             className="hidden"
+            tabIndex={-1}
           />
         </div>
-      )}
-      {/* Create Template Button */}
+
+        {/* Back (conditional) */}
+        {isDoubleSided && (
+          <div>
+            <label
+              htmlFor="back-upload"
+              className="block text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2"
+            >
+              Back Side Template
+            </label>
+            <div
+              className="border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-xl p-6 bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors text-center relative group"
+              tabIndex={0}
+              aria-label="Back side template upload"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !backImage) {
+                  backInputRef.current?.click();
+                }
+              }}
+            >
+              {backImage ? (
+                <div className="relative inline-block">
+                  <img
+                    src={backImage}
+                    alt="Back template preview"
+                    className="max-h-48 rounded-lg shadow border border-blue-100 dark:border-blue-900"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Remove back image"
+                    onClick={() => setBackImage("")}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full shadow hover:bg-red-600 transition"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Layers className="mx-auto h-10 w-10 text-blue-400 mb-2" />
+                  <button
+                    id="back-upload"
+                    type="button"
+                    onClick={() => backInputRef.current?.click()}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold focus:underline"
+                  >
+                    Click to upload back side
+                  </button>
+                </>
+              )}
+            </div>
+            <input
+              ref={backInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file, "back");
+              }}
+              className="hidden"
+              tabIndex={-1}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Action Button */}
       <button
         type="button"
         onClick={handleCreateTemplate}
         disabled={!templateName || !frontImage}
-        className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        className="w-full px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:text-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow hover:shadow-md transition-all focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
       >
         Create Template
       </button>
-    </div>
+    </section>
   );
 }

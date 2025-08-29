@@ -1,15 +1,28 @@
-// DataImporter.tsx
 import React, { useState, useRef } from "react";
-import { Upload, Users, GraduationCap, FileSpreadsheet } from "lucide-react";
+import {
+  Upload,
+  Users,
+  GraduationCap,
+  FileSpreadsheet,
+  FileText,
+} from "lucide-react";
 import { DataSource } from "../types";
 import { demoEmployees, demoStudents } from "../data/demoData";
+import * as XLSX from "xlsx";
 
+/**
+ * Modern, accessible, and premium DataImporter:
+ * - Clean, focused layout with micro-interactions and dark mode support.
+ * - Drag-and-drop uploader with keyboard accessibility.
+ * - Consistent design system tokens and a11y.
+ */
 interface DataImporterProps {
   onDataImport: (data: DataSource, type: "employee" | "student") => void;
 }
 
 export default function DataImporter({ onDataImport }: DataImporterProps) {
   const [dragActive, setDragActive] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -34,18 +47,26 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
   };
 
   const handleFileUpload = (file: File) => {
-    if (file.type === "application/json") {
+    setSelectedFile(file);
+
+    const fileName = file.name.toLowerCase();
+    const isJson = file.type === "application/json" || fileName.endsWith(".json");
+    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+    const isCsv = fileName.endsWith(".csv");
+
+    if (isJson) {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const data = JSON.parse(e.target?.result as string);
           if (Array.isArray(data)) {
-            // Auto-detect type based on common fields (e.g., employeeId, position for employees)
-            const isEmployee = data.some(
-              (item) =>
-                ("employeeId" in item && typeof item.employeeId === "string") ||
-                ("position" in item && typeof item.position === "string")
-            );
+            const isEmployee = data.some((item) => {
+              const obj = item as Record<string, any>;
+              return (
+                ("employeeId" in obj && typeof obj.employeeId === "string") ||
+                ("position" in obj && typeof obj.position === "string")
+              );
+            });
             onDataImport(data, isEmployee ? "employee" : "student");
           } else {
             alert("JSON file must contain an array of objects.");
@@ -56,8 +77,36 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
         }
       };
       reader.readAsText(file);
+    } else if (isExcel || isCsv) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+          if (Array.isArray(jsonData)) {
+            // Try to detect type
+            const isEmployee = jsonData.some((item) => {
+              const obj = item as Record<string, any>;
+              return (
+                ("employeeId" in obj && typeof obj.employeeId === "string") ||
+                ("position" in obj && typeof obj.position === "string")
+              );
+            });
+            onDataImport(jsonData as DataSource, isEmployee ? "employee" : "student");
+          } else {
+            alert("Excel/CSV must contain a table of objects.");
+          }
+        } catch (error) {
+          console.error("Error parsing Excel/CSV:", error);
+          alert("Invalid Excel/CSV file. Please check the format.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
     } else {
-      alert("Please upload a JSON file.");
+      alert("Please upload a JSON, Excel (.xlsx/.xls), or CSV file.");
     }
   };
 
@@ -66,84 +115,98 @@ export default function DataImporter({ onDataImport }: DataImporterProps) {
     if (file) {
       handleFileUpload(file);
     }
-    // Reset file input to allow re-uploading the same file if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* File Upload Area */}
+    <section className="max-w-xl mx-auto space-y-7" aria-labelledby="import-data-heading">
+      {/* Upload Card */}
       <div
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive
-            ? "border-blue-400 bg-blue-50"
-            : "border-gray-300 hover:border-gray-400"
-        }`}
+        className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer shadow-sm bg-card border-border
+        ${dragActive ? "border-blue-500 bg-blue-50 dark:bg-blue-950" : "hover:border-primary/70"}`}
+        tabIndex={0}
+        aria-label="Upload data file"
+        aria-describedby="import-data-desc"
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+        }}
       >
-        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <p className="text-lg font-medium text-gray-900 mb-2">
-          Drop your JSON file here, or click to select
+        <Upload
+          className={`mx-auto h-14 w-14 mb-4 transition-colors ${
+            dragActive ? "text-blue-500" : "text-muted-foreground"
+          }`}
+        />
+        <p className="text-lg font-semibold text-foreground">
+          Drag & drop your{" "}
+          <span className="text-primary">JSON, Excel (.xlsx/.xls), or CSV</span> file here
         </p>
-        <p className="text-sm text-gray-500 mb-4">
-          Upload employee or student data (JSON format)
+        <p id="import-data-desc" className="text-sm text-muted-foreground mb-4">
+          or click to select from your computer
         </p>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Select File
-        </button>
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json"
+          accept=".json,.xlsx,.xls,.csv"
           onChange={handleFileInputChange}
           className="hidden"
         />
+
+        {/* File preview */}
+        {selectedFile && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted rounded-md py-2 px-3">
+            <FileText className="h-4 w-4" />
+            <span>{selectedFile.name}</span>
+            <span className="text-muted-foreground/70">
+              ({(selectedFile.size / 1024).toFixed(1)} KB)
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Excel Upload Info */}
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      {/* Info Box */}
+      <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border border-blue-200 dark:border-blue-900 rounded-xl shadow-sm">
         <div className="flex items-start gap-3">
-          <FileSpreadsheet className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-800">
-            <p className="font-medium">Excel/CSV Support Coming Soon</p>
-            <p className="text-blue-600">
-              Currently supports JSON format only. Excel & CSV upload will be
-              available in a future update.
+          <FileSpreadsheet className="h-6 w-6 text-primary shrink-0" />
+          <div className="text-sm text-blue-800 dark:text-blue-300">
+            <p className="font-semibold">Excel/CSV/JSON Upload Supported</p>
+            <p>
+              You can import data from Excel (.xlsx/.xls), CSV, or JSON files. Make sure your file contains a table of employees or students with appropriate columns.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Demo Data Buttons */}
-      <div className="pt-6 border-t border-gray-200">
-        <p className="text-base font-medium text-gray-800 mb-3">
-          Or use demo data:
+      {/* Demo Data */}
+      <div className="pt-6 border-t border-border">
+        <p className="text-base font-semibold text-foreground mb-4">
+          Or try with demo data
         </p>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-4">
           <button
+            type="button"
             onClick={() => onDataImport(demoEmployees, "employee")}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-5 py-2 rounded-full bg-emerald-600 text-white font-medium shadow hover:bg-emerald-700 hover:shadow-md transition"
           >
             <Users className="h-4 w-4" />
-            Employee Data
+            Employees
           </button>
           <button
+            type="button"
             onClick={() => onDataImport(demoStudents, "student")}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-5 py-2 rounded-full bg-purple-600 text-white font-medium shadow hover:bg-purple-700 hover:shadow-md transition"
           >
             <GraduationCap className="h-4 w-4" />
-            Student Data
+            Students
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

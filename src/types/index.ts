@@ -34,7 +34,7 @@ export interface CardField {
   key: string;
   label: string;
   value: string;
-  side: 'front' | 'back';
+  side: "front" | "back";
   x: number;
   y: number;
   width: number;
@@ -42,13 +42,12 @@ export interface CardField {
   fontSize: number;
   fontFamily: string;
   color: string;
-  textAlign: 'left' | 'center' | 'right';
-  fontWeight: 'normal' | 'bold';
+  textAlign: "left" | "center" | "right";
+  fontWeight: "normal" | "bold";
   layer: number;
   rotation?: number;
   lineHeight?: number;
   borderRadius?: number;
-  
 }
 
 export interface CardTemplate {
@@ -63,7 +62,7 @@ export interface CardTemplate {
 }
 
 export interface PrintSettings {
-  paperSize: 'A4' | 'A3' | 'Letter' | 'Custom';
+  paperSize: "A4" | "A3" | "Letter" | "Custom";
   customWidth?: number;
   customHeight?: number;
   itemsPerRow: number;
